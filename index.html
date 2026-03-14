@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Telegram Shop Mini App</title>
+    <!-- Подключаем скрипт Telegram WebApp -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        /* Базовые стили и переменные темы */
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #fff);
+            --text-color: var(--tg-theme-text-color, #000);
+            --hint-color: var(--tg-theme-hint-color, #999);
+            --link-color: var(--tg-theme-link-color, #2481cc);
+            --button-color: var(--tg-theme-button-color, #2481cc);
+            --button-text-color: var(--tg-theme-button-text-color, #fff);
+            --secondary-bg-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Шапка */
+        header {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-bottom: 1px solid var(--secondary-bg-color);
+            position: sticky;
+            top: 0;
+            background-color: var(--bg-color);
+            z-index: 100;
+        }
+
+        /* Сетка товаров */
+        .products-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .product-card {
+            background-color: var(--secondary-bg-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.1s;
+        }
+
+        .product-card:active {
+            transform: scale(0.98);
+        }
+
+        .product-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            background-color: #ddd; /* Заглушка, если нет картинки */
+        }
+
+        .product-info {
+            padding: 8px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .product-title {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-price {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .add-btn {
+            background-color: var(--button-color);
+            color: var(--button-text-color);
+            border: none;
+            padding: 8px;
+            width: 100%;
+            margin-top: auto;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        /* Плавающая кнопка корзины */
+        .cart-float {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--button-color);
+            color: var(--button-text-color);
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .cart-badge {
+            background-color: #ff4b4b;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+        }
+
+        /* Модальное окно корзины */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 2000;
+        }
+
+        .modal {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--bg-color);
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+            padding: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--secondary-bg-color);
+        }
+
+        .total-price {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .pay-btn {
+            background-color: var(--button-color);
+            color: var(--button-text-color);
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+<header id="header">
+    Магазин Тапок
+</header>
+
+<div class="products-container" id="products-list">
+    <!-- Товары будут добавлены через JS -->
+</div>
+
+<!-- Плавающая кнопка корзины -->
+<div class="cart-float" onclick="openCart()">
+    <span>Корзина</span>
+    <div class="cart-badge" id="cart-count">0</div>
+</div>
+
+<!-- Модальное окно корзины -->
+<div class="modal-overlay" id="cart-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Ваша корзина</h2>
+            <button class="close-btn" onclick="closeCart()">&times;</button>
+        </div>
+        
+        <div id="cart-items-container">
+            <!-- Товары корзины -->
+        </div>
+
+        <div class="total-price" id="cart-total">Итого: 0 ₽</div>
+
+        <button class="pay-btn" onclick="checkout()">Оплатить</button>
+    </div>
+</div>
+
+<script>
+    // Инициализация Telegram WebApp
+    const tg = window.Telegram.WebApp;
+    
+    // Сообщаем телеграму, что приложение готово и расширяем на весь экран
+    tg.ready();
+    tg.expand(); 
+
+    // Данные товаров (обычно приходят с бэкенда)
+    const products = [
+        { id: 1, title: "Nike Air Max", price: 12000, img: "https://via.placeholder.com/150/0000FF/808080?text=Nike" },
+        { id: 2, title: "Adidas Ultraboost", price: 14500, img: "https://via.placeholder.com/150/FF0000/FFFFFF?text=Adidas" },
+        { id: 3, title: "Puma RS-X", price: 9800, img: "https://via.placeholder.com/150/FFFF00/000000?text=Puma" },
+        { id: 4, title: "New Balance 574", price: 11000, img: "https://via.placeholder.com/150/808000/FFFFFF?text=NB" },
+    ];
+
+    let cart = []; // Массив корзины
+
+    const productsContainer = document.getElementById('products-list');
+    const cartCountEl = document.getElementById('cart-count');
+    const cartItemsContainer = document.getElementById('cart-items-container');
+    const cartTotalEl = document.getElementById('cart-total');
+    const modalOverlay = document.getElementById('cart-modal');
+
+    // 1. Рендер товаров
+    function renderProducts() {
+        products.forEach(product => {
+            const card = document.createElement('div');
+            card.className = 'product-card';
+            
+            // Используем заглушку, если нет ссылки на реальное фото
+            const imgSrc = product.img.startsWith('http') ? product.img : '';
+
+            card.innerHTML = `
+                <img src="${imgSrc}" alt="${product.title}" class="product-img">
+                <div class="product-info">
+                    <div>
+                        <div class="product-title">${product.title}</div>
+                        <div class="product-price">${product.price.toLocaleString()} ₽</div>
+                    </div>
+                    <button class="add-btn" onclick="addToCart(${product.id})">В корзину</button>
+                </div>
+            `;
+            productsContainer.appendChild(card);
+        });
+    }
+
+    // 2. Логика корзины
+    function addToCart(id) {
+        const product = products.find(p => p.id === id);
+        
+        // Проверяем, есть ли уже товар в корзине
+        const existingItem = cart.find(item => item.id === id);
+        
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({ ...product, quantity: 1 });
+        }
+
+        updateCartUI();
+        
+        // Вибрация при добавлении (Haptic Feedback)
+        tg.HapticFeedback.notificationOccurred('success');
+    }
+
+    function removeFromCart(id) {
+        cart = cart.filter(item => item.id !== id);
+        updateCartUI();
+        renderCartItems(); // Перерисовать список внутри модалки
+    }
+
+    function updateCartUI() {
+        const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+        cartCountEl.textContent = totalQuantity;
+        
+        // Обновляем заголовок вкладки (опционально)
+        tg.setHeaderColor(getComputedStyle(document.documentElement).getPropertyValue('--bg-color'));
+    }
+
+    function renderCartItems() {
+        if (cart.length === 0) {
+            cartItemsContainer.innerHTML = '<div style="text-align:center; color:var(--hint-color);">Корзина пуста</div>';
+            cartTotalEl.textContent = 'Итого: 0 ₽';
+            return;
+        }
+
+        let html = '';
+        let totalPrice = 0;
+
+        cart.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            totalPrice += itemTotal;
+            
+            html += `
+                <div class="cart-item">
+                    <div>
+                        <b>${item.title}</b><br>
+                        <small>${item.quantity} x ${item.price} ₽</small>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span>${itemTotal.toLocaleString()} ₽</span>
+                        <button onclick="removeFromCart(${item.id})" style="background:none; border:none; color:red; cursor:pointer;">✕</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        cartItemsContainer.innerHTML = html;
+        cartTotalEl.textContent = `Итого: ${totalPrice.toLocaleString()} ₽`;
+    }
+
+    // 3. Управление модальным окном
+    function openCart() {
+        modalOverlay.style.display = 'block';
+        renderCartItems();
+    }
+
+    function closeCart() {
+        modalOverlay.style.display = 'none';
+    }
+
+    // Закрытие по клику вне окна
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeCart();
+    });
+
+    // 4. Оплата через Invoice API Telegram
+    function checkout() {
+        if (cart.length === 0) {
+            tg.showAlert("Корзина пуста!");
+            return;
+        }
+
+        // Формируем данные для отправки в Telegram Bot API
+        const title = "Оплата заказа";
+        const description = "Покупка товаров из каталога";
+        
+        // Provider Token - это токен вашего платежного провайдера (Stripe, YooKassa и т.д.)
+        // Для теста можно использовать 'test' или оставить пустым, но бот должен быть подключен к платежке
+        const providerToken = "TEST_TOKEN_123"; 
+
+        // Формируем список товаров для Invoice
+        const payload = JSON.stringify(cart.map(item => ({
+            label: item.title,
+            amount: item.price * 100 // Telegram требует сумму в копейках (или наименьших единицах валюты)
+        })));
+
+        try {
+            tg.openInvoice({
+                title: title,
+                description: description,
+                payload: payload, 
+                provider_token: providerToken,
+                currency: "RUB",
+                prices: cart.map(item => ({
+                    label: item.title,
+                    amount: item.price * 100
+                }))
+            }, (status) => {
+                if (status === 'paid') {
+                    tg.showAlert("Спасибо за покупку! Заказ оплачен.");
+                    // Здесь можно очистить корзину и отправить данные на сервер бота
+                    cart = [];
+                    updateCartUI();
+                    closeCart();
+                } else {
+                    console.log('Invoice failed');
+                }
+            });
+
+        } catch (error) {
+            console.error("Ошибка открытия инвойса:", error);
+            tg.showAlert("Произошла ошибка при оплате. Попробуйте позже.");
+        }
+    }
+
+    // Запуск
+    renderProducts();
+
+</script>
+</body>
+</html>
